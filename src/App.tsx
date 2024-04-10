@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import { supabase } from './supabaseClient';
+import TodoistProjects from './TodoistProjects';
+import axios from 'axios';
+import todoistLogo from './assets/todoist-icon.png';
+import iosCalendarLogo from './assets/iosCalendar-icon.png';
+import aiLogo from './assets/ai-icon.webp';
 
 function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false); // State to track saving operation
   const [apiKey, setApiKey] = useState('');
+  const [validApiKey, setValidApiKey] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [userId, setUserId] = useState('');
 
@@ -20,6 +26,7 @@ function App() {
         setLoggedIn(false);
         setApiKey('');
         setUserId(''); // Clear user ID upon logout
+        setValidApiKey(false);
       }
     });
 
@@ -28,9 +35,23 @@ function App() {
     };
   }, []);
 
+  const checkTodoistApiKeyValidity = async (apiKey: string) => {
+    try {
+      const response = await axios.get('https://api.todoist.com/rest/v2/projects', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      setValidApiKey(true);
+      return true;
+    } catch (error) {
+      setValidApiKey(false);
+      return false;
+    }
+  };
+
   const fetchOrCreateOrUpdateApiKey = async (userId: string, newApiKey: string = '', update = false) => {
     if (update) {
       setSaving(true); // Begin saving operation
+      setValidApiKey(false);
       const { error } = await supabase
         .from('user_api_keys')
         .update({ api_key: newApiKey })
@@ -40,6 +61,7 @@ function App() {
         console.error('Error updating API key:', error);
       }
       setSaving(false); // End saving operation
+
       return;
     }
 
@@ -56,12 +78,13 @@ function App() {
 
     if (data) {
       setApiKey(data.api_key);
+      setValidApiKey(true);
     } else {
       setSaving(true); // Assume saving operation for consistency
       const { error: insertError } = await supabase
         .from('user_api_keys')
         .insert([{ user_id: userId, api_key: 'Empty ToDoIst API Key' }]);
-      
+
       if (insertError) {
         console.error('Error creating API key entry:', insertError);
       } else {
@@ -72,10 +95,15 @@ function App() {
   };
 
   const handleSaveApiKey = async () => {
-    if (userId) { // Use stored userId for saving the API key
-      await fetchOrCreateOrUpdateApiKey(userId, apiKey, true);
+
+    if (await checkTodoistApiKeyValidity(apiKey)) {
+      if (userId) { // Use stored userId for saving the API key
+        await fetchOrCreateOrUpdateApiKey(userId, apiKey, true);
+      } else {
+        console.error("No user session found.");
+      }
     } else {
-      console.error("No user session found.");
+      setApiKey('Wrong Api Key');
     }
   };
 
@@ -87,14 +115,12 @@ function App() {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error logging out:', error);
-    } else {
-      setLoggedIn(false);
-      setApiKey('');
-      setUserId(''); // Clear user ID upon logout
-    }
+    setLoggedIn(false);
+    setApiKey('');
+    setUserId('');
+    setValidApiKey(false);
+
+    await supabase.auth.signOut();
   };
 
   if (loading) {
@@ -103,26 +129,53 @@ function App() {
 
   return (
     <div className="App">
-      <h1>ToDoIst + IOS Calendar Integration</h1>
-      {loggedIn ? (
-        <>
-          <div>You are logged in.</div>
-          <button onClick={handleLogout}>Logout</button>
-          <div>
-            <input 
-              value={apiKey} 
-              onChange={(e) => setApiKey(e.target.value)} 
-              placeholder="Enter your API Key" 
-            />
-            <button onClick={handleSaveApiKey} disabled={saving}>
-              Save ToDoIst API Key
-            </button>
-            {saving && <span className="loader"></span>} {/* Display loading icon when saving */}
-          </div>
-        </>
-      ) : (
-        <button onClick={handleLogin}>Login with Google</button>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* ToDoist logo */}
+        <img
+          src={todoistLogo}
+          alt="ToDoist Logo"
+          style={{ width: '100px', marginRight: '20px' }} // Adjust width and margin as needed
+        />
+        {/* Plus sign */}
+        <span style={{ fontSize: '70px', marginRight: '20px' }}>+</span>
+        {/* iOS Calendar logo */}
+        <img
+          src={iosCalendarLogo}
+          alt="iOS Calendar Logo"
+          style={{ width: '120px', marginRight: '20px' }} // Adjust width and margin as needed
+        />
+        {/* Plus sign */}
+        <span style={{ fontSize: '70px', marginRight: '20px' }}>+</span>
+        {/* AI robot image */}
+        <img
+          src={aiLogo}
+          alt="AI Robot Image"
+          style={{ width: '110px', background: 'transparent' }} // Adjust width as needed
+        />
+      </div>
+      <div style={{ marginTop: '60px' }}>
+        {loggedIn ? (
+          <>
+            <button onClick={handleLogout}>Logout</button>
+            <div>
+              <input
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your API Key"
+              />
+              <button onClick={handleSaveApiKey} disabled={saving}>
+                Save ToDoIst API Key
+              </button>
+              {saving && <span className="loader"></span>} {/* Display loading icon when saving */}
+            </div>
+            {validApiKey ?
+              <TodoistProjects apiToken={apiKey} user_id={userId} /> : <div></div>
+            }
+          </>
+        ) : (
+          <button onClick={handleLogin}>Login with Google</button>
+        )}
+      </div>
     </div>
   );
 }
