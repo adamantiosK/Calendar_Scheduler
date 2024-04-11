@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ListOptionModalProps, Project } from './interfaces/interfaces';
+import { ListOptionModalProps } from './interfaces/interfaces';
 import { supabase } from './supabaseClient';
 
 const ListOptionModal: React.FC<ListOptionModalProps> = ({ isOpen, onClose, project }) => {
@@ -26,7 +26,7 @@ const ListOptionModal: React.FC<ListOptionModalProps> = ({ isOpen, onClose, proj
           sunday_availability: project.sunday_availability,
           start_availability: project.start_availability,
           end_availability: project.end_availability,
-          allow_overlapping: project.allowOverlapping,
+          allow_overlapping: project.allow_overlapping,
         }).eq('service_id', project.id);
 
       if (error) {
@@ -185,10 +185,10 @@ const ListOptionModal: React.FC<ListOptionModalProps> = ({ isOpen, onClose, proj
           <label>
             <input
               type="checkbox"
-              checked={project.allowOverlapping}
+              checked={project.allow_overlapping}
               onChange={() => {
                 // Toggle allow overlapping
-                project.allowOverlapping = !project.allowOverlapping;
+                project.allow_overlapping = !project.allow_overlapping;
               }}
             />
             Allow Overlapping Events

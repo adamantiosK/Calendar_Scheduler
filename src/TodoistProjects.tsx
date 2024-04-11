@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ListOptionModal from './ListOptionModalComponent';
 import { supabase } from './supabaseClient';
-import { TodoistProjectsProps, Project} from './interfaces/interfaces';
+import { TodoistProjectsProps, Project } from './interfaces/interfaces';
 import calendarIcon from './assets/calendar-icon.png'
 
 
-const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) => {
+const TodoistProjects: React.FC<TodoistProjectsProps> = ({ api_token, user_id }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
-    if (!apiToken) {
+    if (!api_token) {
       console.error('API token is required');
       return;
     }
@@ -20,17 +20,17 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
 
 
     axios.get('https://api.todoist.com/rest/v2/projects', {
-      headers: { Authorization: `Bearer ${apiToken}` }
+      headers: { Authorization: `Bearer ${api_token}` }
     })
       .then(async response => {
-        const formattedProjects = response.data.map((project: any) => ({
+        const formattedProjects = response.data.map((project: Project) => ({
           ...project,
           isSelected: false // Initialize all projects as not selected
         }));
 
         const ids = formattedProjects.map((project: Project) => project.id);
 
-        let { data, error, status } = await supabase
+        let { data, error } = await supabase
           .from('project_list')
           .select('*')
           .in('service_id', ids);
@@ -43,9 +43,8 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
           data.forEach(item => {
             const index = formattedProjects.findIndex((project: Project) => project.id === item.service_id);
             if (index !== -1) {
-              // formattedProjects[index].isSelected = true;
               formattedProjects[index] = {
-                ...formattedProjects[index], // Spread existing properties
+                ...formattedProjects[index],
                 isSelected: true,
                 monday_avalability: item.monday_availability,
                 tuesday_availability: item.tuesday_availability,
@@ -56,7 +55,7 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
                 sunday_availability: item.sunday_availability,
                 start_availability: item.start_availability,
                 end_availability: item.end_availability,
-                allowOverlapping: item.allowOverlapping
+                allow_overlapping: item.allow_overlapping
               };
             }
           });
@@ -65,18 +64,18 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
         setProjects(formattedProjects);
       })
       .catch(error => console.error("Error fetching Todoist projects:", error));
-  }, [apiToken]);
+  }, [api_token]);
 
   const handleCheckboxChange = (id: number, isSelected: boolean) => {
     setProjects(projects.map(project =>
       project.id === id ? { ...project, isSelected: isSelected } : project
     ));
 
-    if(isSelected){
+    if (isSelected) {
       const projectToSave = projects.find((project: Project) => project.id === id);
-      if(projectToSave)
+      if (projectToSave)
         saveNewListToDB(projectToSave)
-    }else{
+    } else {
       deleteListFromDB(id)
     }
   };
@@ -84,8 +83,8 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
   const saveNewListToDB = async (project: Project) => {
     const newData = {
       user_id: user_id,
-      service_id: project.id, 
-      list_name: project.name, 
+      service_id: project.id,
+      list_name: project.name,
     };
 
     // Insert data into the 'project_list' table
@@ -119,8 +118,33 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
     }
   };
 
-  const openCalendarLink = () => {
-      window.open("https://www.geeksforgeeks.org", '_blank');  
+  function showToast(message: string) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.backgroundColor = 'black';
+    toast.style.color = 'white';
+    toast.style.padding = '10px';
+    toast.style.borderRadius = '5px';
+    toast.style.zIndex = '1000';
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 3000);
+  };
+
+  const copyCalendarLinkToClip = async (id: number) => {
+    try {
+      const baseUrl = `${window.location.protocol}//${window.location.host}`;
+      await navigator.clipboard.writeText(`${baseUrl}/calendar/${api_token}/${user_id}/${id}`);
+      showToast('URL copied to clipboard!');
+    } catch (err) {
+      console.error('Could not copy URL to clipboard', err);
+      showToast('Failed to copy URL to clipboard.');
+    }
   };
 
   return (
@@ -144,7 +168,7 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ apiToken, user_id }) 
               Open Options
             </button>
             <button
-              onClick={openCalendarLink}
+              onClick={() => copyCalendarLinkToClip(project.id)}
               disabled={!project.isSelected}
               style={{
                 marginLeft: '5px'
