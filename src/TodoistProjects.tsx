@@ -5,7 +5,6 @@ import { supabase } from './supabaseClient';
 import { TodoistProjectsProps, Project } from './interfaces/interfaces';
 import calendarIcon from './assets/calendar-icon.png'
 
-
 const TodoistProjects: React.FC<TodoistProjectsProps> = ({ api_token, user_id }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -138,8 +137,8 @@ const TodoistProjects: React.FC<TodoistProjectsProps> = ({ api_token, user_id })
 
   const copyCalendarLinkToClip = async (id: number) => {
     try {
-      const baseUrl = `${window.location.protocol}//${window.location.host}`;
-      await navigator.clipboard.writeText(`${baseUrl}/calendar/${api_token}/${user_id}/${id}`);
+      const url = `calendar/${api_token}/${user_id}/${id}`;
+      await navigator.clipboard.writeText("https://i-calendar-scheduler-service.vercel.app/" + url);
       showToast('URL copied to clipboard!');
     } catch (err) {
       console.error('Could not copy URL to clipboard', err);
